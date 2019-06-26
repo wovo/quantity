@@ -1,0 +1,1 @@
+This directory contains the (header) files that are the library proper.

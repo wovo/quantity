@@ -1,0 +1,44 @@
+plain int, float etc. are (often) CODE SMELLS
+
+- named values, in order of preference
+   magic numbers
+   variables
+   #define
+   consts
+   enum
+   enum class
+
+- loop indices
+   use range-based for loops
+   
+- loop a fixed number of times
+   consider using a loop<> that hides the type and name of the loop varible
+   and it can handle unrolling
+   
+- specify size and signedness
+   int / unit
+   fast
+   least
+   8 / 16 / 32 / 64   
+   
+- use std::byte for untyped memory
+   
+- subranges
+   if it can only be a limited range of values, express so
+   compiler can find the correct size
+   even if you don't want it at run-time
+   but do test *twice*
+   
+- ratio   
+   
+- scale theory
+   nominal
+   ordinal
+   interval
+   ratio
+   
+- quantity / unit
+
+- torsor   
+   
+   
