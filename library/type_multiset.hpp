@@ -37,6 +37,14 @@
 /// type_multiset::one< typename T >
 ///    a multiset with only the type T with multiplicity 1
 ///
+/// type_multiset::print< typename A, typename S >( S & stream )
+///    when int, and each type T in A 
+///    both have an operator<< for stream, this function prints the
+///    typeset by calling, for each type T in a, 
+///    the operator<< for an object of type T, and for its multiplicity.
+///    Note that the order in which the types are printed is
+///    undetermined.
+///
 /// type_multiset::add< typename A, typename B >
 ///    adding two type multisets:
 ///    the result is a multiset in which for each element the 
@@ -53,14 +61,6 @@
 ///    the result is true if and only if the multiplicity of each element
 ///    in the type multiset A is the same in the type multiset B, 
 ///    and vice versa
-///
-/// type_multiset::print< typename S, typename A >( S & stream )
-///    when int, and each type T in A (with a non-zero multiplicity),
-///    both have an operator<< for stream, this function prints the
-///    typeset by calling, for each type T in a, 
-///    the operator<< for an object of type T, and for its multiplicity.
-///    Note that the order in which the types are printed is
-///    undetermined.
 ///
 //
 // ==========================================================================
@@ -89,19 +89,40 @@ struct sentinel {
    using data                  = void;
    static constexpr int count  = 0;
    using tail                  = void;
+   template< typename S > static void print( S & s ){}
 };
 
-template< typename Data, int Count, typename Tail = sentinel >
+template< typename Data, int Count, typename Tail >
 struct node {
    using data                  = Data;
    static constexpr int count  = Count;
    using tail                  = Tail;
+   
+   template< typename S > static void print( S & s ){
+      s << Data::name;
+      if( count != 1 ){
+         s << count;	  
+      }		 
+	  Tail::print( s );
+   }
 };
 
 using empty = sentinel;
 
 template< typename T >
-struct one : node< T, 1 >{};
+struct one : node< T, 1, sentinel >{};
+
+
+// ===========================================================================
+//
+// print
+//
+// ===========================================================================
+
+template< typename List, typename S > 
+void print( S & s ){
+   List::print( s );   	
+}
 
 
 // ===========================================================================
@@ -132,7 +153,8 @@ struct add_element_recursor <
    void, 0, void 
 > : node < 
    Data1, 
-   Count1 >{};
+   Count1,
+   sentinel >{};
 
 // add_element recursor: same element type
 // merge into one node with added counts, keep tail as-is
@@ -172,10 +194,10 @@ struct add_element : add_element_recursor <
 // re-create current node at the front, 
 // recurse to add the pruned tail
 template< typename Data, int Count, typename Tail >
-struct prune2 : node <
+struct prune_recursor : node <
    Data,
    Count,
-   prune2 < 
+   prune_recursor < 
       typename Tail::data, 
       Tail::count, 
       typename Tail::tail >>{};
@@ -183,7 +205,7 @@ struct prune2 : node <
 // prune recursion terminator: current element is the sentinel
 // return the (or rather a) sentinel
 template<>
-struct prune2< 
+struct prune_recursor < 
    void, 0, void 
 > : 
    sentinel {};
@@ -191,9 +213,9 @@ struct prune2<
 // prune recursor: current element has a count of 0
 // return the pruned tail  
 template< typename Data, typename Tail >
-struct prune2< 
+struct prune_recursor < 
    Data, 0, Tail 
-> : prune2 < 
+> : prune_recursor < 
    typename Tail::data, 
    Tail::count, 
    typename Tail::tail >{};
@@ -201,7 +223,7 @@ struct prune2<
 // prune interface: 
 // unwrap the first element and call prune recursor
 template< typename List >
-struct prune : prune2< 
+struct prune : prune_recursor < 
    typename List::data,
    List::count,
    typename List::tail >{};
@@ -260,7 +282,7 @@ template< typename Data, int Count, int Factor, typename Tail >
 struct multiply_recursor : node <
    Data,
    Count * Factor,
-   multiply2 < 
+   multiply_recursor < 
       typename Tail::data, 
       Tail::count, Factor,
       typename Tail::tail >>{};
@@ -276,11 +298,11 @@ struct multiply_recursor <
 // multiply interface: 
 // unwrap the first element and call the recursor
 template< typename List, int Factor >
-struct multiply : multiply_recursor < 
+struct multiply : prune < multiply_recursor < 
    typename List::data,
    List::count,
    Factor,
-   typename List::tail >{};   
+   typename List::tail >>{};   
 
    
 // ===========================================================================
@@ -294,11 +316,11 @@ struct multiply : multiply_recursor <
 // equal tail recursor: 
 // report whether the ( Data1, Count1 ) pair appears in the second list
 template< 
-   typename Data1, int Count1 
+   typename Data1, int Count1, 
    typename Data2, int Count2, typename Tail >
 struct equal_tail_recursor : equal_tail_recursor <
-   Data1, Count1
-   Tail::data, Tail::copunt, typename Tail::tail >{};
+   Data1, Count1,
+   typename Tail::data, Tail::count, typename Tail::tail >{};
    
 // equal tail match: 
 // when both Data and Count match, report true
@@ -309,7 +331,7 @@ struct equal_tail_recursor<
    void, 0, Tail
 > {
    static constexpr bool value = true;
-}   
+};   
 
 // equal tail end-of-list: 
 // when the end of the second list is reached, report false
@@ -320,26 +342,38 @@ struct equal_tail_recursor<
    Data, Count, Tail
 > {
    static constexpr bool value = false;
-}   
+};   
+
+// ===========================================================================
 
 // equal front recursor: 
-// call the equal tail recursor to find whether ( Data1, Coun1 )
+// call the equal tail recursor to find whether this ( Data1, Coun1 )
 // appears in the second list,
-// and recurse on the first list
+// and recurse to the next element of the first list
 template< 
    typename Data1, int Count1, typename Tail1, 
    typename Data2, int Count2, typename Tail2 >
-struct equal_front_recursor : {
+struct equal_front_recursor {
    
-   using first = equal_tail_recursor <
+   using front = equal_tail_recursor <
       Data1, Count1,
       Data2, Count2, Tail2 >;
       
    using tail = equal_front_recursor <
-      Tail1::data, Tail1::count, Tail1::tail,
-      Data2, Count2, Tail2 >;
+      typename Tail1::data,  Tail1::count,  typename Tail1::tail,
+      Data2,                 Count2,        Tail2 >;
       
-   static constexpr bool value = first::value && second::value;
+   static constexpr bool value = front::value && tail::value;
+};   
+
+// equal front recursor: list exhausted, nothing more to find
+template<  
+   typename Data2, int Count2, typename Tail2 >
+struct equal_front_recursor<
+   void, 0, void,
+   Data2, Count2, Tail2
+> {   
+   static constexpr bool value = true;
 };   
 
 // equal interface: 
@@ -349,11 +383,11 @@ struct equal {
    
    using forward = equal_front_recursor < 
       typename List::data,  List::count,  typename List::tail,
-      typename Other::data, Other::count, typename Other::tail >{};   
+      typename Other::data, Other::count, typename Other::tail >;   
       
    using backward = equal_front_recursor <     
       typename Other::data, Other::count, typename Other::tail,
-      typename List::data,  List::count,  typename List::tail >{};
+      typename List::data,  List::count,  typename List::tail >;
       
    static constexpr bool value = forward::value && backward::value;   
 };   

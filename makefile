@@ -14,7 +14,7 @@ test-compilation.exe: library/torsor.hpp tests/test-compilation.cpp
 test-compilation-concepts.exe: library/torsor.hpp tests/test-compilation-concepts.cpp
 	$(CPPX) tests/test-compilation-concepts.cpp -o test-compilation-concepts.exe 
 
-test-runtime.exe: test/test-runtime.cpp
+test-runtime.exe: test/test-runtime.cpp library/quantity.hpp library/type_multiset.hpp
 	$(CPPX) test/test-runtime.cpp -o test-runtime.exe 
 
 build: 
