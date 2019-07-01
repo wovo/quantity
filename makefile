@@ -14,11 +14,11 @@ test-compilation.exe: library/torsor.hpp tests/test-compilation.cpp
 test-compilation-concepts.exe: library/torsor.hpp tests/test-compilation-concepts.cpp
 	$(CPPX) tests/test-compilation-concepts.cpp -o test-compilation-concepts.exe 
 
-test-runtime.exe: tests/test.cpp
-	$(CPPX) tests/test.cpp -o test-runtime.exe 
+test-runtime.exe: test/test-runtime.cpp
+	$(CPPX) test/test-runtime.cpp -o test-runtime.exe 
 
 build: 
-	$(CPPX) tests/test-error-messages.cpp -o test-compiler-messages.exe 
+	$(CPPX) test/test-error-messages.cpp -o test-compiler-messages.exe 
 
 run: test-runtime.exe
 	./test-runtime.exe

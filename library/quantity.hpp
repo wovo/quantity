@@ -17,6 +17,8 @@
 #ifndef quantity_hpp
 #define quantity_hpp
 
+#include "type_multiset.hpp"
+
 // this file contains Doxygen lines
 /// @file
 
@@ -63,6 +65,13 @@ concept bool can_be_plussed
    ( + v );
 };
 
+// concept for the ( - quantity ) operator
+template< typename V >
+concept bool can_be_minussed
+= requires ( V v ) {  
+   ( - v );
+};
+
 // concept for the ( quantity + value ) operator
 template< typename V, typename W >
 concept bool can_be_added_with_value
@@ -75,6 +84,20 @@ template< typename V, typename W >
 concept bool can_be_subtracted_with_value 
 = requires ( V v, W w ) {  
    ( v - w );
+};
+
+// concept for the ( quantity * value ) operator
+template< typename V, typename W >
+concept bool can_be_multiplied_with_value
+= requires ( V v, W w ) {  
+   ( v * w );
+};
+
+// concept for the ( quantity / value ) operator
+template< typename V, typename W >
+concept bool can_be_divided_with_value
+= requires ( V v, W w ) {  
+   ( v / w );
 };
 
 // concept for the ( quantity += value ) operator
@@ -154,28 +177,72 @@ concept bool can_be_printed_to
 
 /// ADT for the quantity of some specific thing
 //
-/// A quantity type with a specific tag can be added to, 
-/// subtracted from, assigned to, and compared with quantities
-/// with the same tag.
+/// A quantity with a tag type T can be copy-constructed from, 
+/// added to, subtracted from, assigned to, and compared with quantities
+/// with the same tag type.
+///
 /// A quantity can be multiplied with or divided by a plain value.
+/// Two quantities can be multiplied or divided.
+/// For multiplication, the tag type of the result is the sum of the 
+/// tag types of the two values, interpreted as type multi-sets.
+/// For division, the multiplicities of the second quantity are 
+/// subtracted instead of added.
+/// When the multi-set of the result type is empty, the resuls a plain
+/// value (not a quantity).
+///
+/// For all operations on quantity values, it is also required that
+/// their value types V support the corresponding operation.
+/// For operations that produce a result, the value type of the result
+/// is the type produced by the corresponding operation on the 
+/// value type of the quantities.
+///
+/// Each quantity type Q has a static constexpr value Q::one,
+/// which is used to construct other values of type Q.
 ///
 /// All operations have the __attribute__((always_inline)),
 /// hence there is no need to bother with choosing for copy 
 /// or reference parameter passing: all passing disappears.
 ///
-template< typename T, typename M = void >
+template< typename V, typename T >
 class quantity final {  
 private:
 
-   // (only) quantities (of any type) can 
+   // For operations that involve a right-hand side quantity,
+   // this rhs is a quantity< W, U >.
+
+   // (only) quantities (of any base-type or tag-type) can 
    // - access the value of quantities of any (same or other) type
+   // - construct a quantity from a plain (integer) value
    template<typename, typename> friend class quantity; 
    
    // the stored base type value
-   T value;
+   V value;
+   
+   // the tags (value multiset) of this quantity
+   using tags = T;
+   
+   // create from a base value
+   ///@cond INTERNAL
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr explicit quantity( const V & value ):
+      value( value )
+   {}   
 
 
 public:
+
+   // =======================================================================
+   //
+   // quantity one constant
+   //
+   // =======================================================================
+   
+   /// value one
+   //
+   /// This value is used to create other quantity values.
+   static constexpr const quantity one = quantity( 1 );
+   
 
    // =======================================================================
    //
@@ -192,39 +259,33 @@ public:
    constexpr explicit quantity()
    {}
 
-   /// create from a base value
-   ///
-   /// Create a quantity with some value.
-   ///@cond INTERNAL
-   __attribute__((always_inline))
-   ///@endcond
-   constexpr explicit quantity( const T & value ):
-      value( value )
-   {}
-
    /// create from another quantity
    ///
-   /// Create a quantity from another quantity, which must have a base type
-   /// from which our own base type can be copy-constructed.
-   template< typename U >
+   /// Create a quantity from another quantity, which must have 
+   /// the same tag type, and a base type
+   /// from which our base type can be copy-constructed.
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_constructed_from< T, U >
+   requires quantity_concepts::can_be_constructed_from< V, W >
+   // wovo compatibility!   
    __attribute__((always_inline))
    ///@endcond
-   constexpr quantity( const quantity< U, M > & right ):
+   constexpr quantity( const quantity< W, U > & right ):
       value( right.value )
    {}
 
    /// assign a quantity from another quantity
    ///
-   /// Copy the value from another quantity, which must have a base type
-   /// that can be assigned to our base type.
-   template< typename U >
+   /// Assign the value from another quantity, 
+   /// which must have a the same tag type,
+   /// and base type that can be assigned to our base type.
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_assigned_from< T, U >
+   requires quantity_concepts::can_be_assigned_from< V, W >
+   // wovo compatibility!   
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator=( const quantity< U, M > & right ){
+   quantity & operator=( const quantity< W, U > & right ){
       value = right.value;
       return *this;
    }
@@ -238,29 +299,38 @@ public:
 
    /// positive of a quantity
    ///
-   /// This unary plus operator just returns the quantity (value) itself.w
+   /// This unary plus operator just returns the quantity (value) itself.
    constexpr auto operator+() const 
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_plussed< T >
+   requires quantity_concepts::can_be_plussed< V >
    __attribute__((always_inline))
    ///@endcond
    {
-      return ::quantity< T, M >( + value ); 
+      return quantity< 
+         decltype( + value), 
+         T 
+      >
+         ( + value ); 
    }
 
-   /// add a quantity with a value
+   /// add a quantity with another quantity
    ///
    /// Add a value to ourself.
    /// The base types of our quantity and the value must be addable.
    /// The result is a quantity of the type 
    /// and with the value of that addition.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_added_with_value< T, U >
+   requires quantity_concepts::can_be_added_with_value< V, W >
+   // wovo compatibility!   
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator+( const U & right ) const {
-      return ::quantity< decltype( value + right ), M >( value + right );      
+   constexpr auto operator+( const quantity< W, U > & right ) const {
+      return quantity< 
+         decltype( value + right.value ), 
+         T 
+      >
+         ( value + right.value );      
    }
 
    /// update add a quantity with a value
@@ -269,13 +339,14 @@ public:
    /// The base types of our quantity and the value 
    /// must be update addable.
    /// The result is a ourself, updated appropriately.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_update_added_with_value< T, U >
+   requires quantity_concepts::can_be_update_added_with_value< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator+=( const U & right ){
-      value += right;
+   quantity & operator+=( const quantity< W, U > & right ){
+      value += right.value;
       return *this;
    }
 
@@ -286,53 +357,114 @@ public:
    //
    // =======================================================================
 
-   /// subtract a quantity with a value
+   /// negative of a quantity
    ///
-   /// Subtract a value from ourself.
-   /// The base types of our quantity and the value must be subtractable.
-   /// The result is a quantity of the type 
-   /// and with the value of that subtraction.
-   template< typename U >
+   /// This unary minus operator returns a quantity with the negative
+   /// of the value.
+   constexpr auto operator-() const 
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_subtracted_with_value< T, U >
+   requires quantity_concepts::can_be_minussed< V >
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator-( const U & right ) const {
-      return ::quantity< decltype( value - right ), M >( value - right );     
+   {
+      return quantity< 
+         decltype( - value ), 
+         T 
+      >
+         ( - value ); 
    }
-   
+
    /// subtract two quantities
    ///
    /// Subtract a quantity from ourself.
    /// The base types of our quantity and the other quantity 
    /// must be subtractable.
-   /// The result is of the type and has the value of that subtraction.
-   template< typename U >
+   /// The result is of the value type and has the value of that subtraction.
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_subtracted_with_value< T, U >
+   requires quantity_concepts::can_be_subtracted_with_value< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator-( const quantity< U, M > & right ) const {
-      return value - right.value;      
+   constexpr auto operator-( const quantity< W, U > & right ) const {
+      return quantity< 
+         decltype( value - right.value ), 
+         T 
+      >
+         ( value - right.value );     
    }
-   
+      
    /// update subtract a quantity with a value
    ///
    /// Subtract a value into ourself.
    /// The base types of our quantity and the value 
    /// must be update subtractable.
    /// The result is a ourself, updated appropriately.   
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_update_subtracted_with_value< T, U >
+   requires quantity_concepts::can_be_update_subtracted_with_value< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator-=( const U & right ){
-      value -= right;
+   quantity & operator-=( const quantity< W, U > & right ){
+      value -= right.value;
       return *this;
    }
    
    
+   // =======================================================================
+   //
+   // multiply
+   //
+   // =======================================================================
+
+   /// multiply a quantity with a plain value
+   ///
+   /// Multiply ourself with another quantity
+   /// The base types of our quantity and the value must be multiplyable.
+   /// The result is a quantity of the type 
+   /// and with the value of that multiplication.
+   template< typename X >
+   ///@cond INTERNAL
+   requires quantity_concepts::can_be_multiplied_with_value< V, X >
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto operator*( const X & right ) const {
+      return quantity< 
+         decltype( value * right ), 
+         T  
+      >
+         ( value * right );      
+   }
+
+   /// multiply a quantity with another quantity
+   ///
+   /// Multiply ourself with another quantity.
+   /// The base types of our quantity and the value must be multiplyable.
+   /// The result is a quantity of the type 
+   /// and with the value of that multiplication.
+   template< typename W, typename U >
+   ///@cond INTERNAL
+   requires quantity_concepts::can_be_multiplied_with_value< V, W >
+   // wovo compatibility!   
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto operator*( const quantity< W, U > & right ) const {
+      return quantity< 
+         decltype( value * right.value ), 
+         type_multiset::add< tags, typename U::tags >
+      >
+         ( value * right.value );      
+   }
+
+   ///@cond INTERNAL
+   // wovo compatibility!   
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto operator/( const quantity & right ) const {
+      return value / right.value;      
+   }
+
    // =======================================================================
    //
    // compare equal
@@ -344,12 +476,13 @@ public:
    /// Compare two quantities for equality.
    /// The base types of te quantities must support comparing for equality.
    /// The result is te result of that comparison.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_equal< T, U >
+   requires quantity_concepts::can_be_compared_equal< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator==( const quantity< U, M > & right ) const {
+   constexpr auto operator==( const quantity< W, U > & right ) const {
       return value == right.value;
    }
 
@@ -358,12 +491,13 @@ public:
    /// Compare two quantities for inequality.
    /// The base types of te quantities must support comparing for inequality.
    /// The result is te result of that comparison.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_unequal< T, U >
+   requires quantity_concepts::can_be_compared_unequal< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator!=( const quantity< U, M > & right ) const {
+   constexpr auto operator!=( const quantity< W, U > & right ) const {
       return value != right.value;
    }
    
@@ -379,12 +513,13 @@ public:
    /// Compares a quantity for being larger than another quantity.
    /// The base types of te quantities must support the comparison.
    /// The result is te result of that comparison.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_larger< T, U >
+   requires quantity_concepts::can_be_compared_larger< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator>( const quantity< U, M > & right ) const {
+   constexpr auto operator>( const quantity< W, U > & right ) const {
       return value > right.value;
    }
 
@@ -393,12 +528,13 @@ public:
    /// Compares a quantity for being larger than or equal to another quantity.
    /// The base types of te quantities must support the comparison.
    /// The result is te result of that comparison.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_larger_or_equal< T, U >
+   requires quantity_concepts::can_be_compared_larger_or_equal< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator>=( const quantity< U, M > & right ) const {
+   constexpr auto operator>=( const quantity< W, U > & right ) const {
       return value >= right.value;
    }
 
@@ -414,12 +550,13 @@ public:
    /// Compares a quantity for being smaller than another quantity.
    /// The base types of te quantities must support the comparison.
    /// The result is te result of that comparison.
-   template< typename U >
+   template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_smaller< T, U >
+   requires quantity_concepts::can_be_compared_smaller< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator<( const quantity< U, M > & right ) const {
+   constexpr auto operator<( const quantity< W, U > & right ) const {
       return value < right.value;
    }
 
@@ -428,12 +565,13 @@ public:
    /// Compares a quantity for being smaller than or equal to another quantity.
    /// The base types of te quantities must support the comparison.
    /// The result is te result of that comparison.
-   template< typename U >
+      template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_compared_smaller_or_equal< T, U >
+   requires quantity_concepts::can_be_compared_smaller_or_equal< V, W >
+   // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator<=( const quantity< U, M > & right ) const {
+   constexpr auto operator<=( const quantity< W, U > & right ) const {
       return value <= right.value;
    }
      
@@ -441,8 +579,11 @@ public:
    //
    // reverse arithmetic
    //
+   // * and / with plain values
+   //
    // =======================================================================
 
+/*
    // stopgap because friend doesn't seem to work properly for operator+
    ///@cond INTERNAL
    __attribute__((always_inline))
@@ -466,7 +607,7 @@ public:
       return quantity< decltype( left + right.value ), M >( 
         left + right.value, 42 ); 
    }
-
+*/
 
 }; // template class quantity
 
@@ -479,17 +620,17 @@ public:
 
 /// print a quantity to a cout-like object
 ///
-/// The quantity value is printed, preceded by a '@'
+/// The quantity value is printed, preceded by a '#'
 /// character.
 /// The left argument must support printing (using operator<<)
 /// of a char and of a base type value.
-template< typename COUT, typename T, typename M >
+template< typename COUT, typename V, typename T >
 ///@cond INTERNAL
-requires quantity_concepts::can_be_printed_to< COUT, T >
+requires quantity_concepts::can_be_printed_to< COUT, V >
 ///@endcond
-COUT & operator<<( COUT & cout, const quantity< T, M > & right ){
-   cout << '@';
-   cout << ( (T)( right - quantity< T, M >() ) );
+COUT & operator<<( COUT & cout, const quantity< V, T > & right ){
+   cout << '#';
+   cout << right / quantity< V, T >::one;
    return cout;
 }
    

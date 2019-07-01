@@ -1,6 +1,6 @@
 // ==========================================================================
 //
-// quantity_type_multiset.hpp
+// type_multiset.hpp
 //
 // C++ header that implements a compile-time multiset of types
 //
@@ -21,10 +21,11 @@
 
 // ==========================================================================
 //
-/// \page type multiset
+/// \page type_multiset
 ///
 /// The type multiset is a type compile-time datastructure.
-/// It is a type that maintains the number of times each type occurs in it.
+/// It is a type that maintains the number of times each type occurs in it
+/// (its multiplicity).
 /// It is used by the quantity ADT.
 /// It lives in the namespace type_multiset.
 ///
@@ -218,7 +219,7 @@ struct prune : prune2<
 template< 
    typename Data, int Count, typename Tail,
    typename List > 
-struct add_recursor : add_data < 
+struct add_recursor : add_element < 
    Data, 
    Count, 
    add_recursor< 
@@ -256,7 +257,7 @@ struct add : prune< add_recursor <
 // re-create current node at the front, 
 // recurse to append the pruned tail
 template< typename Data, int Count, int Factor, typename Tail >
-struct multiply2 : node <
+struct multiply_recursor : node <
    Data,
    Count * Factor,
    multiply2 < 
@@ -267,7 +268,7 @@ struct multiply2 : node <
 // multiply recursion terminator: current element is the sentinel
 // return the (or rather a) sentinel
 template< int Factor >
-struct multiply2< 
+struct multiply_recursor < 
    void, 0, Factor, void 
 > : 
    sentinel {};
@@ -275,12 +276,87 @@ struct multiply2<
 // multiply interface: 
 // unwrap the first element and call the recursor
 template< typename List, int Factor >
-struct multiply : multiply2 < 
+struct multiply : multiply_recursor < 
    typename List::data,
    List::count,
    Factor,
    typename List::tail >{};   
+
    
+// ===========================================================================
+//
+// equal
+//
+// check whether the multiplicities in both sets are all equal
+//
+// ===========================================================================
+
+// equal tail recursor: 
+// report whether the ( Data1, Count1 ) pair appears in the second list
+template< 
+   typename Data1, int Count1 
+   typename Data2, int Count2, typename Tail >
+struct equal_tail_recursor : equal_tail_recursor <
+   Data1, Count1
+   Tail::data, Tail::copunt, typename Tail::tail >{};
+   
+// equal tail match: 
+// when both Data and Count match, report true
+template< 
+   typename Data, int Count, typename Tail >
+struct equal_tail_recursor<
+   Data, Count,
+   void, 0, Tail
+> {
+   static constexpr bool value = true;
+}   
+
+// equal tail end-of-list: 
+// when the end of the second list is reached, report false
+template< 
+   typename Data, int Count, typename Tail >
+struct equal_tail_recursor<
+   Data, Count,
+   Data, Count, Tail
+> {
+   static constexpr bool value = false;
+}   
+
+// equal front recursor: 
+// call the equal tail recursor to find whether ( Data1, Coun1 )
+// appears in the second list,
+// and recurse on the first list
+template< 
+   typename Data1, int Count1, typename Tail1, 
+   typename Data2, int Count2, typename Tail2 >
+struct equal_front_recursor : {
+   
+   using first = equal_tail_recursor <
+      Data1, Count1,
+      Data2, Count2, Tail2 >;
+      
+   using tail = equal_front_recursor <
+      Tail1::data, Tail1::count, Tail1::tail,
+      Data2, Count2, Tail2 >;
+      
+   static constexpr bool value = first::value && second::value;
+};   
+
+// equal interface: 
+// unwrap the first element and call the recursor
+template< typename List, typename Other >
+struct equal {
+   
+   using forward = equal_front_recursor < 
+      typename List::data,  List::count,  typename List::tail,
+      typename Other::data, Other::count, typename Other::tail >{};   
+      
+   using backward = equal_front_recursor <     
+      typename Other::data, Other::count, typename Other::tail,
+      typename List::data,  List::count,  typename List::tail >{};
+      
+   static constexpr bool value = forward::value && backward::value;   
+};   
    
 } // namespace type_multiset
    
