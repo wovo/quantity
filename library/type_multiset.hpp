@@ -86,24 +86,29 @@ namespace type_multiset {
 // ===========================================================================
 
 struct sentinel {
-   using data                  = void;
-   static constexpr int count  = 0;
-   using tail                  = void;
-   template< typename S > static void print( S & s ){}
+   static constexpr bool is_type_multiset_node  = true;
+   using data                                   = void;
+   static constexpr int count                   = 0;
+   using tail                                   = void;
+   
+   template< typename S > 
+   static void print( S & s ){}
 };
 
 template< typename Data, int Count, typename Tail >
 struct node {
-   using data                  = Data;
-   static constexpr int count  = Count;
-   using tail                  = Tail;
+   static constexpr bool is_type_multiset_node  = true;
+   using data                                   = Data;
+   static constexpr int count                   = Count;
+   using tail                                   = Tail;
    
-   template< typename S > static void print( S & s ){
+   template< typename S > 
+   static void print( S & s ){
       s << Data::name;
       if( count != 1 ){
          s << count;	  
       }		 
-	  Tail::print( s );
+      Tail::print( s );
    }
 };
 
@@ -111,6 +116,12 @@ using empty = sentinel;
 
 template< typename T >
 struct one : node< T, 1, sentinel >{};
+
+template< typename T >
+concept bool is_type_multiset_node = T::is_type_multiset_node;
+
+template< is_type_multiset_node T >
+struct one< T > : T {};
 
 
 // ===========================================================================
@@ -328,10 +339,10 @@ template<
    typename Data, int Count, typename Tail >
 struct equal_tail_recursor<
    Data, Count,
-   void, 0, Tail
+   Data, Count, Tail
 > {
    static constexpr bool value = true;
-};   
+}; 
 
 // equal tail end-of-list: 
 // when the end of the second list is reached, report false
@@ -339,7 +350,7 @@ template<
    typename Data, int Count, typename Tail >
 struct equal_tail_recursor<
    Data, Count,
-   Data, Count, Tail
+   void, 0, Tail
 > {
    static constexpr bool value = false;
 };   

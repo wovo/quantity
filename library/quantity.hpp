@@ -164,6 +164,12 @@ concept bool can_be_printed_to
    ( cout << w );
 };
 
+// concept for 'unit' equality
+template< typename V, typename W >
+concept bool compatible = type_multiset::equal< 
+   typename V::tags, typename W::tags 
+>::value;
+
 }; // namespace quantity_concepts
 
 ///@endcond
@@ -219,7 +225,7 @@ private:
    V value;
    
    // the tags (value multiset) of this quantity
-   using tags = T;
+   using tags = type_multiset::one< T >;
    
    // create from a base value
    ///@cond INTERNAL
@@ -266,8 +272,10 @@ public:
    /// from which our base type can be copy-constructed.
    template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_constructed_from< V, W >
-   // wovo compatibility!   
+   requires (
+      quantity_concepts::can_be_constructed_from< V, W >
+      && quantity_concepts::compatible< T, U >
+   )
    __attribute__((always_inline))
    ///@endcond
    constexpr quantity( const quantity< W, U > & right ):
@@ -281,8 +289,10 @@ public:
    /// and base type that can be assigned to our base type.
    template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_assigned_from< V, W >
-   // wovo compatibility!   
+   requires (
+      quantity_concepts::can_be_constructed_from< V, W >
+      && quantity_concepts::compatible< T, U >
+   )
    __attribute__((always_inline))
    ///@endcond
    quantity & operator=( const quantity< W, U > & right ){
@@ -452,7 +462,7 @@ public:
    constexpr auto operator*( const quantity< W, U > & right ) const {
       return quantity< 
          decltype( value * right.value ), 
-         type_multiset::add< tags, typename U::tags >
+         type_multiset::add< tags, type_multiset::one< U >>
       >
          ( value * right.value );      
    }
@@ -620,17 +630,17 @@ public:
 
 /// print a quantity to a cout-like object
 ///
-/// The quantity value is printed, preceded by a '#'
-/// character.
+/// The quantity value is printed, followed by the 
+/// tags list.
 /// The left argument must support printing (using operator<<)
-/// of a char and of a base type value.
+/// of a base type value.
 template< typename COUT, typename V, typename T >
 ///@cond INTERNAL
 requires quantity_concepts::can_be_printed_to< COUT, V >
 ///@endcond
 COUT & operator<<( COUT & cout, const quantity< V, T > & right ){
-   cout << '#';
    cout << right / quantity< V, T >::one;
+   type_multiset::print< type_multiset::one< T > >( cout );
    return cout;
 }
    

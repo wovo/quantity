@@ -108,6 +108,10 @@ using ab    = type_multiset::add< b, a >;
 using ba    = type_multiset::add< a, b >;
 using a2b2  = type_multiset::add< b2, a2 >;
 using b2a2  = type_multiset::add< a2, b2 >;
+using a2b   = type_multiset::add< b, a2 >;
+using b2a   = type_multiset::add< a, b2 >;
+using ab2   = type_multiset::add< b2, a >;
+using ba2   = type_multiset::add< a2, b >;
 
 void test_multiset_empty(){
    std::stringstream s;
@@ -196,6 +200,22 @@ void test_multiset_add(){
    s.str( "" );
    type_multiset::print< b2a2 >( s );
    CHECK_EQUAL( s.str(), "b2a2" )	
+
+   s.str( "" );
+   type_multiset::print< a2b >( s );
+   CHECK_EQUAL( s.str(), "a2b" )	
+
+   s.str( "" );
+   type_multiset::print< b2a >( s );
+   CHECK_EQUAL( s.str(), "b2a" )	
+
+   s.str( "" );
+   type_multiset::print< ab2 >( s );
+   CHECK_EQUAL( s.str(), "ab2" )	
+
+   s.str( "" );
+   type_multiset::print< ba2 >( s );
+   CHECK_EQUAL( s.str(), "ba2" )	
 
    // add to front
    s.str( "" );
@@ -295,22 +315,76 @@ void test_multiset_equal(){
 
    { auto x = type_multiset::equal< 
       type_multiset::empty, 
-	  type_multiset::empty 
+      type_multiset::empty 
    >::value;  
    CHECK_EQUAL( x, true ); }
 	
    { auto x = type_multiset::equal< 
       type_multiset::empty, 
-	  a 
+      a 
    >::value;  
    CHECK_EQUAL( x, false ); }
 	
    { auto x = type_multiset::equal< 
       a,
-	  type_multiset::empty
+      type_multiset::empty
    >::value;  
    CHECK_EQUAL( x, false ); }
-	
+
+   { auto x = type_multiset::equal< 
+      a,
+      a
+   >::value;  
+   CHECK_EQUAL( x, true ); }
+
+   { auto x = type_multiset::equal< 
+      ab,
+      ab
+   >::value;  
+   CHECK_EQUAL( x, true ); }
+
+   { auto x = type_multiset::equal< 
+      ba,
+      ab
+   >::value;  
+   CHECK_EQUAL( x, true ); }
+
+   { auto x = type_multiset::equal< 
+      a2b2,
+      a2b2
+   >::value;  
+   CHECK_EQUAL( x, true ); }
+
+   { auto x = type_multiset::equal< 
+      b2a2,
+      a2b2
+   >::value;  
+   CHECK_EQUAL( x, true ); }
+
+   { auto x = type_multiset::equal< 
+      a,
+      ab
+   >::value;  
+   CHECK_EQUAL( x, false ); }
+
+   { auto x = type_multiset::equal< 
+      b,
+      ab
+   >::value;  
+   CHECK_EQUAL( x, false ); }
+
+   { auto x = type_multiset::equal< 
+      a2b,
+      a2b2
+   >::value;  
+   CHECK_EQUAL( x, false ); }
+
+   { auto x = type_multiset::equal< 
+      ab2,
+      a2b2
+   >::value;  
+   CHECK_EQUAL( x, false ); }
+
 }
 
 // ==========================================================================
@@ -323,11 +397,35 @@ using qa = quantity< int, tag_a >;
 using qb = quantity< int, tag_b >;
 
 void test_constructor(){
-   auto a = qa::one * 2;
-   auto b = qb::one * 40;
-   auto x = a + b;
-   std::cout << x;
+   std::stringstream s;
+   
+   // value one
+   s.str( "" );
+   s << qa::one;
+   CHECK_EQUAL( s.str(), "1a" )
+   
+   s.str( "" );
+   s << qb::one;
+   CHECK_EQUAL( s.str(), "1b" )
+
 }
+
+void test_multiply(){
+   std::stringstream s;
+ 
+   // multiply by a scalar
+   s.str( "" );
+   s << qa::one * 14;
+   CHECK_EQUAL( s.str(), "14a" )
+   
+   // multiply by a another quantity
+   s.str( "" );
+   s << ( qb::one * 5 ) * ( qa::one * 3 );
+   CHECK_EQUAL( s.str(), "15ab" )
+   
+}
+
+
 
 
 // ==========================================================================
@@ -346,6 +444,7 @@ int main(){
    test_multiset_equal();
 	
    test_constructor();
+   test_multiply();
 
 
    return test_end();
