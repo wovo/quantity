@@ -425,8 +425,10 @@ void test_divide(){
    
    // divide by the same quantity
    s.str( "" );
-   s << ( qb::one * 5 ) * ( qa::one * 3 );
-   CHECK_EQUAL( s.str(), "15ab" )   
+   s << ( qb::one * 6 ) / ( qb::one * 3 );
+   CHECK_EQUAL( s.str(), "2" )   
+   
+   // reverse divide
 }
 
 void test_multiply(){
@@ -441,6 +443,13 @@ void test_multiply(){
    s.str( "" );
    s << ( qb::one * 5 ) * ( qa::one * 3 );
    CHECK_EQUAL( s.str(), "15ab" )   
+
+   // multiply by the inverse qunatity
+   s.str( "" );
+   s << ( qb::one * 6 ) / ( 2 / qa::one );
+   CHECK_EQUAL( s.str(), "3" )   
+   
+   // revese multiply
 }
 
 

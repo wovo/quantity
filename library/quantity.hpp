@@ -488,9 +488,9 @@ public:
    //
    // =======================================================================
 
-   /// divide a quantity with a plain value
+   /// divide a quantity by a plain value
    ///
-   /// Divide ourself with another quantity
+   /// Divide ourself by another quantity.
    /// The base types of our quantity and the value must be dividable.
    /// The result is a quantity of the type 
    /// and with the value of that divison.
@@ -507,9 +507,9 @@ public:
          ( value / right );      
    }
 
-   /// divide a quantity with another quantity
+   /// divide a quantity by another quantity
    ///
-   /// Divide ourself with another quantity.
+   /// Divide ourself by another quantity.
    /// The base types of our quantity and the value must be dividable.
    /// The result is a quantity of the type 
    /// and with the value of that division.
@@ -528,12 +528,12 @@ public:
          ( value / right.value );      
    }
 
-   /// divide a quantity with another quantity
+   /// divide a quantity by a same quantity
    ///
-   /// Divide ourself with another quantity of opposite units.
+   /// Divide ourself by another quantity of the same units.
    /// The base types of our quantity and the value must be dividable.
-   /// The result is a quantity of the type 
-   /// and with the value of that division.
+   /// The result is of the type and with the value of that division.
+   /// (It is a plain scalar, not a qunatity.)
    template< typename W, typename U >
    ///@cond INTERNAL
    requires (

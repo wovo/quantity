@@ -52,4 +52,5 @@ TBW
    - examples
    - concepts??
    - rename to multiplicity??
+   - *= and /= operators for scalar rhs
 - a lot more
