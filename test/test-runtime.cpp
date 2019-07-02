@@ -410,6 +410,25 @@ void test_constructor(){
 
 }
 
+void test_divide(){
+   std::stringstream s;
+ 
+   // divide by a scalar
+   s.str( "" );
+   s << qa::one / 1;
+   CHECK_EQUAL( s.str(), "1a" )
+   
+   // divide by another quantity
+   s.str( "" );
+   s << qa::one / qb::one;
+   CHECK_EQUAL( s.str(), "1b-1a" )   
+   
+   // divide by the same quantity
+   s.str( "" );
+   s << ( qb::one * 5 ) * ( qa::one * 3 );
+   CHECK_EQUAL( s.str(), "15ab" )   
+}
+
 void test_multiply(){
    std::stringstream s;
  
@@ -418,11 +437,10 @@ void test_multiply(){
    s << qa::one * 14;
    CHECK_EQUAL( s.str(), "14a" )
    
-   // multiply by a another quantity
+   // multiply by another quantity
    s.str( "" );
    s << ( qb::one * 5 ) * ( qa::one * 3 );
-   CHECK_EQUAL( s.str(), "15ab" )
-   
+   CHECK_EQUAL( s.str(), "15ab" )   
 }
 
 
@@ -444,6 +462,7 @@ int main(){
    test_multiset_equal();
 	
    test_constructor();
+   test_divide();
    test_multiply();
 
 

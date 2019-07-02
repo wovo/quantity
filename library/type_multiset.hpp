@@ -117,12 +117,6 @@ using empty = sentinel;
 template< typename T >
 struct one : node< T, 1, sentinel >{};
 
-template< typename T >
-concept bool is_type_multiset_node = T::is_type_multiset_node;
-
-template< is_type_multiset_node T >
-struct one< T > : T {};
-
 
 // ===========================================================================
 //

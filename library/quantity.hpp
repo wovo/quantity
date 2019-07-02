@@ -43,7 +43,6 @@
 
 namespace quantity_concepts {
    
-
 // concept for the quantity copy constructor
 template< typename V, typename W >
 concept bool can_be_constructed_from
@@ -210,7 +209,7 @@ concept bool compatible = type_multiset::equal<
 /// or reference parameter passing: all passing disappears.
 ///
 template< typename V, typename T >
-class quantity final {  
+class quantity_implementation {  
 private:
 
    // For operations that involve a right-hand side quantity,
@@ -219,19 +218,19 @@ private:
    // (only) quantities (of any base-type or tag-type) can 
    // - access the value of quantities of any (same or other) type
    // - construct a quantity from a plain (integer) value
-   template<typename, typename> friend class quantity; 
+   template<typename, typename> friend class quantity_implementation; 
    
    // the stored base type value
    V value;
    
    // the tags (value multiset) of this quantity
-   using tags = type_multiset::one< T >;
+   //using tags = T;
    
    // create from a base value
    ///@cond INTERNAL
    __attribute__((always_inline))
    ///@endcond
-   constexpr explicit quantity( const V & value ):
+   constexpr explicit quantity_implementation( const V & value ):
       value( value )
    {}   
 
@@ -247,7 +246,8 @@ public:
    /// value one
    //
    /// This value is used to create other quantity values.
-   static constexpr const quantity one = quantity( 1 );
+   static constexpr const quantity_implementation one = 
+      quantity_implementation( 1 );
    
 
    // =======================================================================
@@ -262,7 +262,7 @@ public:
    ///@cond INTERNAL
    __attribute__((always_inline))
    ///@endcond
-   constexpr explicit quantity()
+   constexpr explicit quantity_implementation()
    {}
 
    /// create from another quantity
@@ -278,7 +278,9 @@ public:
    )
    __attribute__((always_inline))
    ///@endcond
-   constexpr quantity( const quantity< W, U > & right ):
+   constexpr quantity_implementation( 
+      const quantity_implementation< W, U > & right 
+   ):
       value( right.value )
    {}
 
@@ -295,7 +297,9 @@ public:
    )
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator=( const quantity< W, U > & right ){
+   quantity_implementation & operator=( 
+      const quantity_implementation< W, U > & right 
+   ){
       value = right.value;
       return *this;
    }
@@ -316,7 +320,7 @@ public:
    __attribute__((always_inline))
    ///@endcond
    {
-      return quantity< 
+      return quantity_implementation< 
          decltype( + value), 
          T 
       >
@@ -335,8 +339,10 @@ public:
    // wovo compatibility!   
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator+( const quantity< W, U > & right ) const {
-      return quantity< 
+   constexpr auto operator+( 
+      const quantity_implementation< W, U > & right 
+   ) const {
+      return quantity_implementation< 
          decltype( value + right.value ), 
          T 
       >
@@ -355,7 +361,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator+=( const quantity< W, U > & right ){
+   quantity_implementation & operator+=( 
+      const quantity_implementation< W, U > & right 
+   ){
       value += right.value;
       return *this;
    }
@@ -377,7 +385,7 @@ public:
    __attribute__((always_inline))
    ///@endcond
    {
-      return quantity< 
+      return quantity_implementation< 
          decltype( - value ), 
          T 
       >
@@ -396,8 +404,10 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator-( const quantity< W, U > & right ) const {
-      return quantity< 
+   constexpr auto operator-( 
+      const quantity_implementation< W, U > & right 
+   ) const {
+      return quantity_implementation< 
          decltype( value - right.value ), 
          T 
       >
@@ -416,7 +426,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   quantity & operator-=( const quantity< W, U > & right ){
+   quantity_implementation & operator-=( 
+      const quantity_implementation< W, U > & right 
+   ){
       value -= right.value;
       return *this;
    }
@@ -440,7 +452,7 @@ public:
    __attribute__((always_inline))
    ///@endcond
    constexpr auto operator*( const X & right ) const {
-      return quantity< 
+      return quantity_implementation< 
          decltype( value * right ), 
          T  
       >
@@ -455,25 +467,87 @@ public:
    /// and with the value of that multiplication.
    template< typename W, typename U >
    ///@cond INTERNAL
-   requires quantity_concepts::can_be_multiplied_with_value< V, W >
-   // wovo compatibility!   
+   requires quantity_concepts::can_be_multiplied_with_value< V, W >  
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator*( const quantity< W, U > & right ) const {
-      return quantity< 
+   constexpr auto operator*( 
+      const quantity_implementation< W, U > & right 
+   ) const {
+      return quantity_implementation< 
          decltype( value * right.value ), 
-         type_multiset::add< tags, type_multiset::one< U >>
+         type_multiset::add< T, U >
       >
          ( value * right.value );      
    }
+   
+//       && type_multiset::equal< T, type_multiset::multiply< U, -1 > >::value   
 
+   // =======================================================================
+   //
+   // divide
+   //
+   // =======================================================================
+
+   /// divide a quantity with a plain value
+   ///
+   /// Divide ourself with another quantity
+   /// The base types of our quantity and the value must be dividable.
+   /// The result is a quantity of the type 
+   /// and with the value of that divison.
+   template< typename X >
    ///@cond INTERNAL
-   // wovo compatibility!   
+   requires quantity_concepts::can_be_divided_with_value< V, X >
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator/( const quantity & right ) const {
-      return value / right.value;      
+   constexpr auto operator/( const X & right ) const {
+      return quantity_implementation< 
+         decltype( value / right ), 
+         T  
+      >
+         ( value / right );      
    }
+
+   /// divide a quantity with another quantity
+   ///
+   /// Divide ourself with another quantity.
+   /// The base types of our quantity and the value must be dividable.
+   /// The result is a quantity of the type 
+   /// and with the value of that division.
+   template< typename W, typename U >
+   ///@cond INTERNAL
+   requires quantity_concepts::can_be_divided_with_value< V, W >  
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto operator/( 
+      const quantity_implementation< W, U > & right 
+   ) const {
+      return quantity_implementation< 
+         decltype( value / right.value ), 
+         type_multiset::add< T, type_multiset::multiply< U, -1 > >
+      >
+         ( value / right.value );      
+   }
+
+   /// divide a quantity with another quantity
+   ///
+   /// Divide ourself with another quantity of opposite units.
+   /// The base types of our quantity and the value must be dividable.
+   /// The result is a quantity of the type 
+   /// and with the value of that division.
+   template< typename W, typename U >
+   ///@cond INTERNAL
+   requires (
+      quantity_concepts::can_be_divided_with_value< V, W >  
+      && type_multiset::equal< T, U >::value
+   )      
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto operator/( 
+      const quantity_implementation< W, U > & right 
+   ) const {
+      return value / right.value;
+   }
+   
 
    // =======================================================================
    //
@@ -492,7 +566,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator==( const quantity< W, U > & right ) const {
+   constexpr auto operator==( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value == right.value;
    }
 
@@ -507,7 +583,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator!=( const quantity< W, U > & right ) const {
+   constexpr auto operator!=( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value != right.value;
    }
    
@@ -529,7 +607,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator>( const quantity< W, U > & right ) const {
+   constexpr auto operator>( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value > right.value;
    }
 
@@ -544,7 +624,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator>=( const quantity< W, U > & right ) const {
+   constexpr auto operator>=( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value >= right.value;
    }
 
@@ -566,7 +648,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator<( const quantity< W, U > & right ) const {
+   constexpr auto operator<( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value < right.value;
    }
 
@@ -581,7 +665,9 @@ public:
    // wovo compatibility!
    __attribute__((always_inline))
    ///@endcond
-   constexpr auto operator<=( const quantity< W, U > & right ) const {
+   constexpr auto operator<=( 
+      const quantity_implementation< W, U > & right 
+   ) const {
       return value <= right.value;
    }
      
@@ -621,6 +707,11 @@ public:
 
 }; // template class quantity
 
+// the user interface: wrap the user's T as a singleton type_multiset
+template< typename V, typename T >
+struct quantity final : 
+   quantity_implementation< V, type_multiset::one< T >> {};
+
 
 // ==========================================================================
 //
@@ -638,9 +729,12 @@ template< typename COUT, typename V, typename T >
 ///@cond INTERNAL
 requires quantity_concepts::can_be_printed_to< COUT, V >
 ///@endcond
-COUT & operator<<( COUT & cout, const quantity< V, T > & right ){
-   cout << right / quantity< V, T >::one;
-   type_multiset::print< type_multiset::one< T > >( cout );
+COUT & operator<<( 
+   COUT & cout, 
+   const quantity_implementation< V, T > & right 
+){
+   cout << right / quantity_implementation< V, T >::one;
+   type_multiset::print< T >( cout );
    return cout;
 }
    
