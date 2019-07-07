@@ -46,11 +46,14 @@ TBW
 # To do list
 
 - type_multiset
-   - equal
    - print
-   - tests
    - examples
    - concepts??
    - rename to multiplicity??
    - *= and /= operators for scalar rhs
 - a lot more
+- SI
+- make ::one independent of the ground type??
+- ratio-like something (express LM35 conversion constant)
+- scale factors
+- user-defined printing

@@ -214,6 +214,7 @@ private:
 
    // For operations that involve a right-hand side quantity,
    // this rhs is a quantity< W, U >.
+   // When a plain value is involved, it is of type X.
 
    // (only) quantities (of any base-type or tag-type) can 
    // - access the value of quantities of any (same or other) type
@@ -442,7 +443,7 @@ public:
 
    /// multiply a quantity with a plain value
    ///
-   /// Multiply ourself with another quantity
+   /// Multiply ourself with a plain value.
    /// The base types of our quantity and the value must be multiplyable.
    /// The result is a quantity of the type 
    /// and with the value of that multiplication.
@@ -457,6 +458,26 @@ public:
          T  
       >
          ( value * right );      
+   }
+
+   /// multiply a plain value with a quantity
+   ///
+   /// Multiply a plain value with ourself.
+   /// The base types of the value and the value of our quantity 
+   /// must be multiplyable.
+   /// The result is a quantity of the type 
+   /// and with the value of that multiplication.
+   template< typename X >
+   ///@cond INTERNAL
+   requires quantity_concepts::can_be_multiplied_with_value< X, V >
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto _reverse_multiply( const X & left ) const {
+      return quantity_implementation< 
+         decltype( left * value ), 
+         T  
+      >
+         ( left * value );      
    }
 
    /// multiply a quantity with another quantity
@@ -490,10 +511,10 @@ public:
 
    /// divide a quantity by a plain value
    ///
-   /// Divide ourself by another quantity.
+   /// Divide ourself by plain value.
    /// The base types of our quantity and the value must be dividable.
    /// The result is a quantity of the type 
-   /// and with the value of that divison.
+   /// and with the value of that division.
    template< typename X >
    ///@cond INTERNAL
    requires quantity_concepts::can_be_divided_with_value< V, X >
@@ -505,6 +526,27 @@ public:
          T  
       >
          ( value / right );      
+   }
+
+   /// divide a plain value by a quantity 
+   ///
+   /// Divide a plain value by ourself.
+   /// The plain value and the base types of our quantity must be dividable.
+   /// The result is a quantity of the type 
+   /// and with the value of that division.
+   template< typename X >
+   ///@cond INTERNAL
+   requires quantity_concepts::can_be_divided_with_value< X, V >
+   __attribute__((always_inline))
+   ///@endcond
+   constexpr auto _reverse_divide( 
+      const X & left
+   ) const {
+      return ::quantity_implementation< 
+         decltype( left / value ), 
+         type_multiset::multiply< T, -1 >  
+      >
+         ( left / value );      
    }
 
    /// divide a quantity by another quantity
@@ -707,11 +749,13 @@ public:
 
 }; // template class quantity
 
+#include "friends.hpp"
+
 // the user interface: wrap the user's T as a singleton type_multiset
 template< typename V, typename T >
 struct quantity final : 
    quantity_implementation< V, type_multiset::one< T >> {};
-
+   
 
 // ==========================================================================
 //
